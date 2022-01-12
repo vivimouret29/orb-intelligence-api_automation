@@ -109,7 +109,7 @@ class OrbNumApi():
     def run(self):
         print(f'\n{self.output_info()} INFO: Starting {self.iteration} iteration\n')
         start_time = time.perf_counter()
-        tqdm_bar = tqdm(total=self.iteration)
+        tqdm_bar = tqdm(total=self.iteration, desc="OrbApi", ascii=True)
 
         while self.round+1 <= self.iteration:
             self.zip = self.geoname['zip'].values[self.round]
@@ -125,16 +125,21 @@ class OrbNumApi():
                 try:
                     response = rq.get(link)
                     data = response.json()
-                except print(f'{self.output_info()} ERROR: api GET request ', 0):
-                    time.sleep(5)
-                    break
+                except Exception as e:
+                    print(
+                        f'{self.output_info()} {e}')
+                    self.datamissed = self.datamissed.append(
+                        {'api_link': link}, ignore_index=True)
+                    time.sleep(1)
+                    continue
 
                 if self.offset == 0:
                     counting = data['results_count']
 
                 if counting == 0:
+                    time.sleep(.05)
                     break
-                elif counting == 16695:
+                elif counting > 16e23:
                     self.datamissed = self.datamissed.append(
                         {'api_link': link}, ignore_index=True)
                     self.df = self.df.append(
@@ -142,6 +147,7 @@ class OrbNumApi():
 
                     print(
                         f'{self.output_info()} WARNING: Maximum numbers reached: {counting}')
+                    time.sleep(.05)
                     break
                 elif self.offset <= 100:
                     print(json.dumps(data, sort_keys=True, indent=2)
@@ -167,9 +173,11 @@ class OrbNumApi():
                         f'{self.output_info()} WARNING: {counting} unlisted lines were saved in a link')
 
                 if counting < 0:
+                    time.sleep(.05)
                     break
 
                 self.offset += 10
+                time.sleep(.05)
 
             self.round += 1
             tqdm_bar.update(1)
