@@ -8,17 +8,20 @@ import requests as rq
 import json
 import time
 
+from tqdm import tqdm
+
+upback = 1000
+
 
 class OrbNumApi():
 
     def __init__(self, debug):
         self.geoname, self.iteration, self.debug = pd.DataFrame([]), 0, debug
-        self.df, self.datamissed = pd.DataFrame(
-            []), pd.DataFrame([], columns=['api_link'])
-        self.backup = 500
+        self.df, self.datamissed, self.backup = pd.DataFrame(
+            []), pd.DataFrame([], columns=['api_link']), upback
         self.api_key = 'c66c5dad-395c-4ec6-afdf-7b78eb94166a'
         self.naics, self.sic = 511210, 7372
-        self.company, self.country, self.revenue = 'company', 'UnitedStates', '0-1m'
+        self.company, self.country = 'company', 'UnitedStates'
         self.info, self.offset, self.round, self.zip = 0, 0, 0, 0
 
     def __enter__(self):
@@ -47,7 +50,7 @@ class OrbNumApi():
                                         'place name': 'city', 'admin name1': 'state'})
 
         except print(f'{self.output_info()} ERROR: Failure of data cleaning, please do it yourself'):
-            return
+            exit()
 
         self.geoname = data
         self.iteration = self.geoname['zip'].nunique()
@@ -85,13 +88,13 @@ class OrbNumApi():
             self.df = self.df.append(
                 {'api_link': 'No links registered'}, ignore_index=True)
 
-        data = self.df[['zip', 'address1', 'city', 'company_status', 'entity_type', 'fetch_url', 'is_standalone_company', 'api_link', 'full_profile.email',
+        data = self.df[['zip', 'address1', 'city', 'company_status', 'full_profile.names', 'fetch_url', 'full_profile.email',
                         'full_profile.description', 'full_profile.employees', 'full_profile.employees_range', 'full_profile.industry',
                         'full_profile.facebook_account.url', 'full_profile.linkedin_account.url', 'full_profile.twitter_account.url',
                         'full_profile.last_funding_round_amount', 'full_profile.naics_code', 'full_profile.sic_code',
-                        'full_profile.names', 'full_profile.orb_num', 'full_profile.revenue', 'full_profile.revenue_range',
-                        'full_profile.total_funding', 'full_profile.webdomain', 'full_profile.website',
-                        'full_profile.technologies', 'full_profile.year_founded']]
+                        'full_profile.website', 'full_profile.orb_num', 'full_profile.revenue', 'full_profile.revenue_range',
+                        'full_profile.total_funding', 'full_profile.webdomain', 'full_profile.technologies', 'full_profile.year_founded',
+                        'entity_type', 'is_standalone_company', 'api_link']]
 
         data.to_csv(rf'lib/orbnum_api_{self.round}it.csv',
                     sep=',', index=True)
@@ -106,19 +109,17 @@ class OrbNumApi():
     def run(self):
         print(f'\n{self.output_info()} INFO: Starting {self.iteration} iteration\n')
         start_time = time.perf_counter()
+        tqdm_bar = tqdm(total=self.iteration)
 
         while self.round+1 <= self.iteration:
             self.zip = self.geoname['zip'].values[self.round]
             self.zip = f'0{self.zip}' if (len(self.zip) == 4) else self.zip
-
-            print(
-                f'{self.output_info()} INFO: Iteration {self.round+1}/{self.iteration}')
             self.offset = 0
 
             while self.offset < 110:
                 link = f'https://api.orb-intelligence.com/3/search/?api_key={self.api_key}&offset={self.offset}'\
                     f'&entity_type={self.company}&zip={self.zip}&country={self.country}'\
-                    f'&employees=1-10&employees=10-50&revenue={self.revenue}'\
+                    f'&employees=1-10&employees=10-50'\
                     f'&naics_codes={self.naics}&show_full_profile={True}'
 
                 try:
@@ -132,7 +133,6 @@ class OrbNumApi():
                     counting = data['results_count']
 
                 if counting == 0:
-                    time.sleep(1)
                     break
                 elif counting == 16695:
                     self.datamissed = self.datamissed.append(
@@ -142,7 +142,6 @@ class OrbNumApi():
 
                     print(
                         f'{self.output_info()} WARNING: Maximum numbers reached: {counting}')
-                    time.sleep(1)
                     break
                 elif self.offset <= 100:
                     print(json.dumps(data, sort_keys=True, indent=2)
@@ -168,19 +167,19 @@ class OrbNumApi():
                         f'{self.output_info()} WARNING: {counting} unlisted lines were saved in a link')
 
                 if counting < 0:
-                    time.sleep(1)
                     break
 
                 self.offset += 10
-                time.sleep(1)
 
             self.round += 1
+            tqdm_bar.update(1)
 
             if self.round == self.backup:
-                self.backup += 500
+                self.backup += upback
                 self.stored_data()
 
         stop_time = time.perf_counter()
+        tqdm_bar.close()
         print(
             f'{self.output_info()} INFO: Iterations made in {stop_time - start_time:0.4f} seconds')
 
