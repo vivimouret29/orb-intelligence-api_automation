@@ -16,9 +16,10 @@ upback = 1000
 class OrbNumApi():
 
     def __init__(self, debug):
-        self.geoname, self.iteration, self.debug = pd.DataFrame([]), 0, debug
-        self.df, self.datamissed, self.backup = pd.DataFrame(
-            []), pd.DataFrame([], columns=['api_link']), upback
+        self.df, self.geoname, self.datamissed = (pd.DataFrame([]),
+                                                  pd.DataFrame([]),
+                                                  pd.DataFrame([], columns=['api_link']))
+        self.iteration, self.debug, self.backup = 0, debug, upback
         self.api_key = 'c66c5dad-395c-4ec6-afdf-7b78eb94166a'
         self.naics, self.sic = 511210, 7372
         self.company, self.country = 'company', 'UnitedStates'
@@ -30,10 +31,11 @@ class OrbNumApi():
         self.cleaning(self.geoname)
         self.analysis(self.geoname)
         self.run()
+        self.__exit__()
 
     def __exit__(self):
         print(f'{self.output_info()} INFO: Stoping OrbApi Python')
-        quit()
+        exit()
 
     def cleaning(self, data):
         try:
@@ -47,10 +49,11 @@ class OrbNumApi():
                 i += 1
 
             data = data.rename(columns={'postal code': 'zip',
-                                        'place name': 'city', 'admin name1': 'state'})
+                                        'place name': 'city',
+                                        'admin name1': 'state'})
 
         except print(f'{self.output_info()} ERROR: Failure of data cleaning, please do it yourself'):
-            exit()
+            pass
 
         self.geoname = data
         self.iteration = self.geoname['zip'].nunique()
@@ -80,36 +83,66 @@ class OrbNumApi():
     def analysis(self, data):
         return print(f'{self.output_info()} INFO:\n',
                      pd.DataFrame(
-                         {'Data Type': data.dtypes, 'Unique Count': data.apply(lambda x: x.nunique(), axis=0),
-                          'Null Count': data.isnull().sum()}))
+                         {'Data Type': data.dtypes,
+                          'Unique Count': data.apply(lambda x: x.nunique(), axis=0),
+                          'Null Count': data.isnull().sum()
+                          }))
 
     def stored_data(self):
         if self.datamissed.empty == True:
             self.df = self.df.append(
                 {'api_link': 'No links registered'}, ignore_index=True)
 
-        data = self.df[['zip', 'address1', 'city', 'company_status', 'full_profile.names', 'fetch_url', 'full_profile.email',
-                        'full_profile.description', 'full_profile.employees', 'full_profile.employees_range', 'full_profile.industry',
-                        'full_profile.facebook_account.url', 'full_profile.linkedin_account.url', 'full_profile.twitter_account.url',
-                        'full_profile.last_funding_round_amount', 'full_profile.naics_code', 'full_profile.sic_code',
-                        'full_profile.website', 'full_profile.orb_num', 'full_profile.revenue', 'full_profile.revenue_range',
-                        'full_profile.total_funding', 'full_profile.webdomain', 'full_profile.technologies', 'full_profile.year_founded',
-                        'entity_type', 'is_standalone_company', 'api_link']]
+        data = self.df[
+            [
+                'zip',
+                'address1',
+                'city',
+                'company_status',
+                'full_profile.names',
+                'fetch_url',
+                'full_profile.email',
+                'full_profile.description',
+                'full_profile.employees',
+                'full_profile.employees_range',
+                'full_profile.industry',
+                'full_profile.facebook_account.url',
+                'full_profile.linkedin_account.url',
+                'full_profile.twitter_account.url',
+                'full_profile.last_funding_round_amount',
+                'full_profile.naics_code',
+                'full_profile.sic_code',
+                'full_profile.website',
+                'full_profile.orb_num',
+                'full_profile.revenue',
+                'full_profile.revenue_range',
+                'full_profile.total_funding',
+                'full_profile.webdomain',
+                'full_profile.technologies',
+                'full_profile.year_founded',
+                'entity_type',
+                'is_standalone_company',
+                'api_link',
+            ]
+        ]
 
         data.to_csv(rf'lib/orbnum_api_{self.round}it.csv',
                     sep=',', index=True)
 
-        if self.round == self.iteration-1:
-            print('\n---------------------------------------------------------------------------\n'
-                  '|-----------------------------//DATA OUTPUT\\\-----------------------------|\n'
-                  '---------------------------------------------------------------------------\n'
-                  f'{data}'
-                  f'\n{self.output_info()} INFO: Data saved as \'orbnum_api_{self.round}it.csv\'')
+        if self.round == self.iteration:
+            print(
+                '\n---------------------------------------------------------------------------\n'
+                '|-----------------------------//DATA OUTPUT\\\-----------------------------|\n'
+                '---------------------------------------------------------------------------\n'
+                f'{data}'
+                f'\n{self.output_info()} INFO: Data saved as \'orbnum_api_{self.round}it.csv\''
+            )
 
     def run(self):
         print(f'\n{self.output_info()} INFO: Starting {self.iteration} iteration\n')
-        start_time = time.perf_counter()
-        tqdm_bar = tqdm(total=self.iteration, desc="OrbApi", ascii=True)
+        tqdm_bar = tqdm(
+            total=self.iteration,
+            desc="OrbApi")
 
         while self.round+1 <= self.iteration:
             self.zip = self.geoname['zip'].values[self.round]
@@ -127,7 +160,7 @@ class OrbNumApi():
                     data = response.json()
                 except Exception as e:
                     print(
-                        f'{self.output_info()} {e}')
+                        f'\n{self.output_info()} {e}\n')
                     self.datamissed = self.datamissed.append(
                         {'api_link': link}, ignore_index=True)
                     time.sleep(1)
@@ -137,7 +170,7 @@ class OrbNumApi():
                     counting = data['results_count']
 
                 if counting == 0:
-                    time.sleep(.05)
+                    time.sleep(.33)
                     break
                 elif counting > 16e23:
                     self.datamissed = self.datamissed.append(
@@ -146,8 +179,8 @@ class OrbNumApi():
                         self.datamissed, verify_integrity=True, ignore_index=True)
 
                     print(
-                        f'{self.output_info()} WARNING: Maximum numbers reached: {counting}')
-                    time.sleep(.05)
+                        f'\n{self.output_info()} WARNING: Maximum numbers reached: {counting}\n')
+                    time.sleep(.33)
                     break
                 elif self.offset <= 100:
                     print(json.dumps(data, sort_keys=True, indent=2)
@@ -170,14 +203,14 @@ class OrbNumApi():
                     self.df = self.df.append(
                         self.datamissed, verify_integrity=True, ignore_index=True)
                     print(
-                        f'{self.output_info()} WARNING: {counting} unlisted lines were saved in a link')
+                        f'\n{self.output_info()} WARNING: {counting} unlisted lines were saved in a link\n')
 
                 if counting < 0:
-                    time.sleep(.05)
+                    time.sleep(.33)
                     break
 
                 self.offset += 10
-                time.sleep(.05)
+                time.sleep(.33)
 
             self.round += 1
             tqdm_bar.update(1)
@@ -186,15 +219,12 @@ class OrbNumApi():
                 self.backup += upback
                 self.stored_data()
 
-        stop_time = time.perf_counter()
         tqdm_bar.close()
-        print(
-            f'{self.output_info()} INFO: Iterations made in {stop_time - start_time:0.4f} seconds')
 
         if self.df.empty == False:
             self.stored_data()
         else:
-            print(f'{self.output_info()} ERROR: No data recorded')
+            print(f'\n{self.output_info()} ERROR: No data recorded')
 
 
 if __name__ == '__main__':
