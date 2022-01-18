@@ -13,12 +13,13 @@ from tqdm import tqdm
 upback = 1000
 
 
-class OrbNumApi():
-
+class OrbNumApi:
     def __init__(self, debug):
-        self.df, self.geoname, self.datamissed = (pd.DataFrame([]),
-                                                  pd.DataFrame([]),
-                                                  pd.DataFrame([], columns=['api_link']))
+        self.df, self.geoname, self.datamissed = (
+            pd.DataFrame([]),
+            pd.DataFrame([]),
+            pd.DataFrame([], columns=['api_link'])
+        )
         self.iteration, self.debug, self.backup = 0, debug, upback
         self.api_key = 'c66c5dad-395c-4ec6-afdf-7b78eb94166a'
         self.naics, self.sic = 511210, 7372
@@ -48,11 +49,16 @@ class OrbNumApi():
                 data = data.drop(index=drop[i], axis=1)
                 i += 1
 
-            data = data.rename(columns={'postal code': 'zip',
-                                        'place name': 'city',
-                                        'admin name1': 'state'})
+            data = data.rename(
+                columns={
+                    'postal code': 'zip',
+                    'place name': 'city',
+                    'admin name1': 'state',
+                }
+            )
 
-        except print(f'{self.output_info()} ERROR: Failure of data cleaning, please do it yourself'):
+        except print(
+            f'{self.output_info()} ERROR: Failure of data cleaning, please do it yourself'):
             pass
 
         self.geoname = data
@@ -81,17 +87,22 @@ class OrbNumApi():
                         f'{self.output_info()} INFO: Read the csv file {filename}')
 
     def analysis(self, data):
-        return print(f'{self.output_info()} INFO:\n',
-                     pd.DataFrame(
-                         {'Data Type': data.dtypes,
-                          'Unique Count': data.apply(lambda x: x.nunique(), axis=0),
-                          'Null Count': data.isnull().sum()
-                          }))
+        return print(
+            f'{self.output_info()} INFO:\n',
+            pd.DataFrame(
+                {
+                    'Data Type': data.dtypes,
+                    'Unique Count': data.apply(lambda x: x.nunique(), axis=0),
+                    'Null Count': data.isnull().sum(),
+                }
+            )
+        )
 
     def stored_data(self):
         if self.datamissed.empty == True:
             self.df = self.df.append(
-                {'api_link': 'No links registered'}, ignore_index=True)
+                {'api_link': 'No links registered'}, ignore_index=True
+            )
 
         data = self.df[
             [
@@ -101,6 +112,7 @@ class OrbNumApi():
                 'company_status',
                 'full_profile.names',
                 'fetch_url',
+                'full_profile.eins',
                 'full_profile.email',
                 'full_profile.description',
                 'full_profile.employees',
@@ -120,31 +132,29 @@ class OrbNumApi():
                 'full_profile.webdomain',
                 'full_profile.technologies',
                 'full_profile.year_founded',
+                'full_profile.rankings',
                 'entity_type',
                 'is_standalone_company',
                 'api_link',
             ]
         ]
 
-        data.to_csv(rf'lib/orbnum_api_{self.round}it.csv',
-                    sep=',', index=True)
+        data.to_csv(rf'lib/orbnum_api_{self.round}it.csv', sep=',', index=True)
 
         if self.round == self.iteration:
             print(
-                '\n---------------------------------------------------------------------------\n'
-                '|-----------------------------//DATA OUTPUT\\\-----------------------------|\n'
-                '---------------------------------------------------------------------------\n'
+                f'\n---------------------------------------------------------------------------\n'
+                f'|-----------------------------//DATA OUTPUT\\\-----------------------------|\n'
+                f'---------------------------------------------------------------------------\n'
                 f'{data}'
                 f'\n{self.output_info()} INFO: Data saved as \'orbnum_api_{self.round}it.csv\''
             )
 
     def run(self):
         print(f'\n{self.output_info()} INFO: Starting {self.iteration} iteration\n')
-        tqdm_bar = tqdm(
-            total=self.iteration,
-            desc="OrbApi")
+        tqdm_bar = tqdm(total=self.iteration, desc='OrbApi')
 
-        while self.round+1 <= self.iteration:
+        while self.round + 1 <= self.iteration:
             self.zip = self.geoname['zip'].values[self.round]
             self.zip = f'0{self.zip}' if (len(self.zip) == 4) else self.zip
             self.offset = 0
@@ -159,8 +169,7 @@ class OrbNumApi():
                     response = rq.get(link)
                     data = response.json()
                 except Exception as e:
-                    print(
-                        f'\n{self.output_info()} {e}\n')
+                    print(f'\n{self.output_info()} {e}\n')
                     self.datamissed = self.datamissed.append(
                         {'api_link': link}, ignore_index=True)
                     time.sleep(1)
@@ -183,8 +192,9 @@ class OrbNumApi():
                     time.sleep(.33)
                     break
                 elif self.offset <= 100:
-                    print(json.dumps(data, sort_keys=True, indent=2)
-                          ) if self.debug else None
+                    print(
+                        json.dumps(data, sort_keys=True, indent=2)
+                    ) if self.debug else None
 
                     dataJSON = pd.json_normalize(data['results'])
 
@@ -203,7 +213,8 @@ class OrbNumApi():
                     self.df = self.df.append(
                         self.datamissed, verify_integrity=True, ignore_index=True)
                     print(
-                        f'\n{self.output_info()} WARNING: {counting} unlisted lines were saved in a link\n')
+                        f'\n{self.output_info()} WARNING: {counting} unlisted lines were saved in a link\n'
+                    )
 
                 if counting < 0:
                     time.sleep(.33)
