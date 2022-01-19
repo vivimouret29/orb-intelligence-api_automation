@@ -38,32 +38,6 @@ class OrbNumApi:
         print(f'{self.output_info()} INFO: Stoping OrbApi Python')
         exit()
 
-    def cleaning(self, data):
-        try:
-            drop = np.where(data['postal code'] == 'NY')
-            drop += np.where(data['postal code'] == '501')
-            drop += np.where(data['postal code'] == '544')
-
-            i = 0
-            while i < 3:
-                data = data.drop(index=drop[i], axis=1)
-                i += 1
-
-            data = data.rename(
-                columns={
-                    'postal code': 'zip',
-                    'place name': 'city',
-                    'admin name1': 'state',
-                }
-            )
-
-        except print(
-            f'{self.output_info()} ERROR: Failure of data cleaning, please do it yourself'):
-            pass
-
-        self.geoname = data
-        self.iteration = self.geoname['zip'].nunique()
-
     def output_info(self):
         if type(self.info) == int:
             self.info += 1
@@ -85,6 +59,32 @@ class OrbNumApi:
                     self.geoname = pd.read_csv(filename)
                     return print(
                         f'{self.output_info()} INFO: Read the csv file {filename}')
+
+    def cleaning(self, data):
+        try:
+            drop = np.where(data['postal code'] == 'NY')
+            drop += np.where(data['postal code'] == '501')
+            drop += np.where(data['postal code'] == '544')
+
+            i = 0
+            while i < 3:
+                data = data.drop(index=drop[i], axis=1)
+                i += 1
+
+            data = data.rename(
+                columns={
+                    'postal code': 'zip',
+                    'place name': 'city',
+                    'admin name1': 'state',
+                }
+            )
+
+        except print(
+                f'{self.output_info()} ERROR: Failure of data cleaning, please do it yourself'):
+            pass
+
+        self.geoname = data
+        self.iteration = self.geoname['zip'].nunique()
 
     def analysis(self, data):
         return print(
